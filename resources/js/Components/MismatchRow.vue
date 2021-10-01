@@ -18,6 +18,7 @@
                 :menuItems="Object.values(statusOptions)"
                 :placeholder="$i18n('review-status-pending')"
                 v-model="decision"
+                @input="$emit('update:decision', $event.value)"
             />
         </td>
         <td :data-header="$i18n('column-upload-info')">

@@ -95,4 +95,47 @@ describe('MismatchesRow.vue', () => {
             value: currentStatus
         });
     });
+
+    it('emits an update:decision event on dropdown input', async () => {
+        const mismatch = {
+            property_label: 'Hey hey',
+            wikidata_value: 'Some value',
+            external_value: 'Another Value',
+            review_status: 'pending',
+            import_meta: {
+                user: {
+                    username: 'some_user_name'
+                },
+                created_at: '2021-09-23'
+            },
+        };
+
+        const wrapper = mount(MismatchRow, {
+            propsData: { mismatch },
+            mocks: {
+                // Mock the banana-i18n plugin dependency
+                $i18n: key => `${key}`
+            }
+        });
+
+        const dropdown = wrapper.findComponent(Dropdown);
+
+        dropdown.vm.$emit('input', {
+            value: ReviewDecision.Wikidata
+        });
+
+        // Wait for the event queue to be processed.
+        await wrapper.vm.$nextTick();
+
+        const emittedDecisions = wrapper.emitted()['update:decision'];
+
+        // assert event has been emitted
+        expect(emittedDecisions).toBeTruthy();
+
+        // assert only one decision was emitted
+        expect(emittedDecisions.length).toBe(1);
+
+        // assert correct payload
+        expect(emittedDecisions[0]).toEqual([ReviewDecision.Wikidata]);
+    });
 })
