@@ -10,7 +10,12 @@
             </tr>
         </thead>
         <tbody>
-            <mismatch-row v-for="mismatch in mismatches" :key="mismatch.id" :mismatch="mismatch" />
+            <mismatch-row v-for="mismatch in mismatches"
+                :key="mismatch.id"
+                :mismatch="mismatch"
+                :decision.sync="mismatch.review_status"
+                @update:decision="$emit('update:mismatches', mismatches)"
+            />
         </tbody>
     </wikit-table>
 </template>
