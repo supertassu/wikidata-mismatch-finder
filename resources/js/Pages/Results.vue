@@ -9,7 +9,10 @@
                 <h2 class="h4">
                     <wikit-link :href="`http://www.wikidata.org/wiki/${item}`">{{labels[item]}} ({{item}})</wikit-link>
                 </h2>
-                <mismatches-table :mismatches="addLabels(mismatches)" />
+                <mismatches-table
+                    :mismatches="addLabels(mismatches)"
+                    @update:mismatches="decisions[item] = $event"
+                />
             </section>
         </section>
         <p v-else class="not-found">
@@ -56,6 +59,11 @@
             labels: {
                 type: Object as PropType<LabelMap>,
                 default: () => ({})
+            }
+        },
+        data(){
+            return {
+                decisions: {}
             }
         },
         methods: {

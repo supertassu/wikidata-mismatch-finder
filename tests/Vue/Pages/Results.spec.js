@@ -2,6 +2,8 @@ import { mount } from '@vue/test-utils';
 import Results from '@/Pages/Results.vue';
 import MismatchesTable from '@/Components/MismatchesTable.vue';
 
+import { ReviewDecision } from '@/types/Mismatch.ts';
+
 // Stub the inertia vue components module entirely so that we don't run into
 // issues with the Head component.
 jest.mock('@inertiajs/inertia-vue', () => ({}));
@@ -104,5 +106,47 @@ describe('Results.vue', () => {
         expect(wrapper.props().labels).toBe(labels);
 
         Object.values(labels).forEach(label => expect(wrapper.text()).toContain(label));
+    });
+
+    it('syncs mismatches on update:mismatches', async () => {
+
+        const mismatch = {
+            id: 123,
+            item_id: 'Q321',
+            property_id: 'P123',
+            wikidata_value: 'Q1986',
+            external_value: 'Another Value',
+            review_status: 'pending',
+            import_meta: {
+                user: {
+                    username: 'some_user_name'
+                },
+                created_at: '2021-09-23'
+            },
+        };
+
+        const results = {
+            'Q321': [mismatch]
+        };
+
+        const wrapper = mount(Results, {
+            propsData: { results },
+            mocks: {
+                $i18n: key => key
+            }
+        });
+
+        const tables = wrapper.findAllComponents(MismatchesTable);
+        const emitted = [{
+            ...mismatch,
+            review_status: ReviewDecision.Wikidata
+        }];
+
+        tables.at(0).vm.$emit('update:mismatches', emitted);
+
+        // Wait for the event queue to be processed.
+        await wrapper.vm.$nextTick();
+
+        expect(wrapper.vm.decisions['Q321']).toEqual(emitted)
     });
 })
