@@ -1,0 +1,308 @@
+openapi: '3.0.2'
+info:
+  title: Wikidata Mismatch Finder
+  version: '1.0'
+servers:
+  - url: https://mismatch-finder.toolforge.org/api
+paths:
+  /mismatches:
+    get:
+      tags: ['store']
+      summary: Get mismatches by item IDs
+      parameters:
+        - name: ids
+          in: query
+          schema:
+            type: string
+          required: true
+          description: List of |-separated item IDs to get mismatches for
+        - name: include_reviewed
+          in: query
+          schema:
+            type: boolean
+          required: false
+          description: "Include reviewed mismatches? (default: false)"
+        - name: include_expired
+          in: query
+          schema:
+            type: boolean
+          required: false
+          description: "Include expired mismatches? (default: false)"
+      responses:
+        '200':
+          description: A list of mismatches, potentially empty if none are found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListOfMismatches'
+        '422':
+          $ref: '#/components/responses/ValidationErrors'
+
+  /mismatches/{mismatchId}:
+    put:
+      tags: ['store']
+      summary: Update Mismatch review status
+      parameters:
+        - in: path
+          name: mismatchId
+          description: The ID of the Mismatch to update
+          schema:
+            type: number
+          required: true
+      requestBody:
+        description: A object with the new review status field.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FillableMismatch'
+      responses:
+        '200':
+          description: The updated mismatch.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Mismatch'
+        '422':
+          $ref: '#/components/responses/ValidationErrors'
+
+  /imports:
+    get:
+      tags: ['store']
+      summary: Get meta information on all mismatch imports.
+      responses:
+        '200':
+          description: Meta information on mismatch imports
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListOfImportMeta'
+        '500':
+          $ref: '#/components/responses/UnexpectedError'
+
+    post:
+      tags: ['store']
+      summary: Upload a mismatch file to import
+      requestBody:
+        description: CSV file upload
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                mismatch_file:
+                  type: string
+                  format: binary
+                description:
+                  type: string
+                  maxLength: 350
+                external_source:
+                  type: string
+                  maxLength: 100
+                external_source_url:
+                  type: string
+                  maxLength: 1500
+                expires:
+                  type: string
+                  format: date
+              required: [ mismatchFile ]
+      responses:
+        '201':
+          description: Upload successful, import resource created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImportMeta'
+
+        '400':
+          $ref: '#/components/responses/ClientError'
+        '422':
+          $ref: '#/components/responses/ValidationErrors'
+
+  /imports/{importId}:
+    get:
+      tags: ['store']
+      summary: Get meta information on a single mismatch import.
+      parameters:
+        - in: path
+          name: importId
+          schema:
+            type: string
+          required: true
+      responses:
+        '200':
+          description: Meta information on a mismatch import
+          content:
+            application/json:
+              schema:
+                oneOf:
+                 - $ref: '#/components/schemas/ImportMeta'
+                 - $ref: '#/components/schemas/FailedImportMeta'
+                discriminator:
+                  propertyName: status
+                  mapping:
+                    pending: '#/components/schemas/ImportMeta'
+                    completed: '#/components/schemas/ImportMeta'
+                    failed: '#/components/schemas/FailedImportMeta'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+components:
+  responses:
+    ClientError:
+        description: Bad request
+        content:
+            application/json:
+                schema:
+                  type: object
+                  properties:
+                    message:
+                     type: string
+                  required: [ code, message ]
+
+    NotFound:
+        description: The specified resource was not found
+        content:
+            application/json:
+                schema:
+                  type: object
+                  properties:
+                    message:
+                     type: string
+                  required: [ message ]
+
+    Unauthenticated:
+        description: The user is not authenticated
+        content:
+            application/json:
+                schema:
+                  type: object
+                  properties:
+                    message:
+                     type: string
+                  required: [ message ]
+
+    ValidationErrors:
+      description: Invalid data in request body
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              message:
+                type: string
+              errors:
+                type: object
+                additionalProperties:
+                  type: array
+                  items:
+                    type: string
+                example:
+                    attribute_name: [ "string" ]
+
+    UnexpectedError:
+        description: An unexpected error has occurred
+        content:
+            application/json:
+                schema:
+                  type: object
+                  properties:
+                    code:
+                      type: string
+                    message:
+                     type: string
+                  required: [ code, message ]
+
+  schemas:
+    User:
+      properties:
+        id:
+          type: number
+        username:
+          type: string
+        mw_userid:
+          type: string
+
+    FillableMismatch:
+      properties:
+        review_status:
+          type: string
+          enum:
+            - pending
+            - wikidata
+            - external
+            - both
+            - none
+
+    Mismatch:
+      allOf:
+        - type: object
+          properties:
+            id:
+              type: integer
+            item_id:
+              type: string
+            statement_guid:
+              type: string
+            property_id:
+              type: string
+            wikidata_value:
+              type: string
+            external_value:
+              type: string
+            external_url:
+              type: string
+              nullable: true
+            import:
+              type: object
+              $ref: '#/components/schemas/ImportMeta'
+            updated_at:
+              type: string
+              format: date-time
+            reviewer:
+              nullable: true
+              anyOf:
+                - $ref: '#/components/schemas/User'
+        - $ref: '#/components/schemas/FillableMismatch'
+
+    ListOfMismatches:
+      type: array
+      items:
+        $ref: '#/components/schemas/Mismatch'
+
+    ImportMeta:
+      properties:
+        id:
+          type: number
+        status:
+          type: string
+          enum:
+            - pending
+            - failed
+            - completed
+        description:
+          type: string
+          maxLength: 350
+          nullable: true
+        expires:
+          type: string
+          format: date-time
+        created:
+          type: string
+          format: date-time
+        uploader:
+          $ref: '#/components/schemas/User'
+
+    FailedImportMeta:
+      allOf:
+      - $ref: '#/components/schemas/ImportMeta'
+      - type: object
+        properties:
+          error:
+            type: string
+
+    ListOfImportMeta:
+      type: array
+      items:
+        anyOf:
+          - $ref: '#/components/schemas/ImportMeta'
+          - $ref: '#/components/schemas/FailedImportMeta'
