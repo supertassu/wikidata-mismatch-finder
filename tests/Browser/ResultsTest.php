@@ -222,7 +222,7 @@ class ResultsTest extends DuskTestCase
             $browser->loginAs(User::factory()->create())
                 ->visit(new ResultsPage($mismatch->item_id))
                 ->decideAndApply($mismatch, [
-                    'option' => 2,
+                    'option' => 3,
                     'label' => 'Wrong data on external source'
                 ])
                 ->waitFor('@confirmation-dialog')
